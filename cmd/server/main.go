@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/config"
 	auth "sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/middleware"
 
 	"github.com/charmbracelet/log"
@@ -11,9 +12,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/database"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/database"
 
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/handlers"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/handlers"
 
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/models"
 )
@@ -32,8 +33,8 @@ func init() {
 	}
 
 }
-func initDatabase() {
-	db, err := database.InitDB()
+func initDatabase(conf *config.Config) {
+	db, err := database.InitDB(conf)
 	if err != nil {
 		log.Fatal("Failed to connect to database", "error", err)
 	}
@@ -44,42 +45,40 @@ func initDatabase() {
 }
 
 func main() {
-	initDatabase()
-	ensureAdminCreated()
+	conf := config.New()
+	initDatabase(conf)
+	ensureAdminCreated(conf)
 
-	r := gin.Default()
+	authMiddleware := auth.New(conf.JWTSecret())
+
+	server := gin.Default()
 
 	{
-		api := r.Group("/api/auth")
+		api := server.Group("/api/auth")
 		api.POST("/login", handlers.Login)
-		api.GET("/users/me", auth.Middleware(), handlers.GetUser)
-		api.GET("/users", auth.Middleware(auth.AdminOnly()), handlers.ListUsers)
-		api.GET("/users/:id", auth.Middleware(), handlers.GetUser)
-		api.POST("/users/:id", auth.Middleware(), handlers.UpdateUser)
+		api.GET("/users/me", authMiddleware.Check(), handlers.GetUser)
+		api.GET("/users", authMiddleware.Check(auth.AdminOnly()), handlers.ListUsers)
+		api.GET("/users/:id", authMiddleware.Check(), handlers.GetUser)
+		api.POST("/users/:id", authMiddleware.Check(), handlers.UpdateUser)
 		api.POST("/users", handlers.CreateUser)
 		api.DELETE("/users/:id", handlers.DeleteUser)
 	}
 
 	// Запуск сервера
-	viper.SetDefault("port", 5001)
-	port := viper.GetInt("port")
-
-	log.Info("Server starting", "port", port)
-	if err := r.Run(fmt.Sprintf(":%d", port)); err != nil {
+	log.Info("Server starting", "port", conf.Port())
+	if err := server.Run(fmt.Sprintf(":%d", conf.Port())); err != nil {
 		log.Fatal("Failed to start server", "error", err)
 	}
 }
 
 // ensureAdminCreated создает root пользователя если не существует
-func ensureAdminCreated() {
+func ensureAdminCreated(conf *config.Config) {
 
-	viper.SetDefault("root_user_email", "root@admin.com")
-	viper.SetDefault("root_user_password", "admin123")
+	rootEmail := conf.RootUserEmail()
+	rootPassword := conf.RootUserPassword()
 
-	rootEmail := viper.GetString("root_user_email")
-	rootPassword := viper.GetString("root_user_password")
-
-	log.Info("Создание пользователя рут", "email", rootEmail, "password", rootPassword)
+	log.Info("Создание пользователя root", "email", rootEmail, "password", rootPassword)
+	log.Warn("Измените данные пользователя root сразу же после запуска сервера")
 
 	var adminRole models.Role
 	if err := database.DB.Where("name = ?", "admin").First(&adminRole).Error; err != nil {

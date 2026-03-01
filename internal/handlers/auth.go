@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/database"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/database"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
@@ -13,12 +13,6 @@ import (
 	"github.com/spf13/viper"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/models"
 )
-
-type CustomClaims struct {
-	jwt.RegisteredClaims
-	UserID uuid.UUID `json:"userId"`
-	Roles  []string  `json:"roles"`
-}
 
 // TODO: Implement getTokenTimeToLive function properly from config
 func getTokenTimeToLive() time.Duration {
@@ -51,7 +45,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Создаем claims
-	claims := CustomClaims{
+	claims := models.Claims{
 		UserID: user.ID,
 		Roles:  user.Roles.ToSlice(),
 		RegisteredClaims: jwt.RegisteredClaims{

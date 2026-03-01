@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/database"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/database"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/models"
 
 	"github.com/charmbracelet/log"

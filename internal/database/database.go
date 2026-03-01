@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/log"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/config"
 
 	migrate "github.com/rubenv/sql-migrate"
-	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -14,8 +14,8 @@ import (
 var DB *gorm.DB
 
 // InitDB инициализирует подключение к базе данных
-func InitDB() (*gorm.DB, error) {
-	dsn := viper.GetString("db_connection_string")
+func InitDB(conf *config.Config) (*gorm.DB, error) {
+	dsn := conf.DatabaseURL()
 	if dsn == "" {
 		return nil, fmt.Errorf("db_connection_string is not set")
 	}

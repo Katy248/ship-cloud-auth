@@ -3,7 +3,8 @@ package main
 import (
 	"flag"
 
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/database"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/config"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/database"
 
 	"github.com/charmbracelet/log"
 	"github.com/joho/godotenv"
@@ -11,14 +12,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-var config struct {
+var cliConfig struct {
 	operation migrate.MigrationDirection
 }
 
 func init() {
-	config.operation = migrate.Up
+	cliConfig.operation = migrate.Up
 	flag.BoolFunc("down", "", func(_ string) error {
-		config.operation = migrate.Down
+		cliConfig.operation = migrate.Down
 		return nil
 	})
 	flag.Parse()
@@ -40,13 +41,13 @@ func init() {
 }
 
 func main() {
-
-	db, err := database.InitDB()
+	conf := config.New()
+	db, err := database.InitDB(conf)
 	if err != nil {
 		log.Fatal("Error occurred while initializing database", "error", err)
 	}
 
-	if config.operation == migrate.Up {
+	if cliConfig.operation == migrate.Up {
 		if err := database.Migrate(db); err != nil {
 			log.Fatal("Error occurred while migrating database", "error", err)
 		}
