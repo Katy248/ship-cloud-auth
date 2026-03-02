@@ -7,6 +7,12 @@ import (
 
 type Claims struct {
 	jwt.RegisteredClaims
-	UserID uuid.UUID `json:"userId"`
-	Roles  []string  `json:"roles"`
+	UserID  uuid.UUID `json:"userId"`
+	Blocked bool      `json:"blocked"`
+	Roles   []string  `json:"roles"`
+}
+
+// Deprecated: Do not use this method, use permissions handler
+func (c *Claims) IsAdmin() bool {
+	return false
 }

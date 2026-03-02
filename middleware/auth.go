@@ -11,7 +11,16 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
-const AuthDataKey = "middleware-auth-data"
+const authenticationDataKey = "middleware-auth-data"
+
+func claimsFromToken(t *jwt.Token) (*models.Claims, error) {
+	claims, ok := t.Claims.(*models.Claims)
+	if !ok {
+		return nil, fmt.Errorf("failed get jwt.MapClaims from token.Claims")
+	}
+
+	return claims, nil
+}
 
 var (
 	ErrNoAuthData        = fmt.Errorf("no auth data in current request context")
@@ -19,11 +28,11 @@ var (
 )
 
 // TODO: fix nested if statements
-func GetUser(c *gin.Context) (*AuthData, error) {
-	if data, exists := c.Get(AuthDataKey); !exists {
+func GetClaims(c *gin.Context) (*models.Claims, error) {
+	if data, exists := c.Get(authenticationDataKey); !exists {
 		return nil, ErrNoAuthData
 	} else {
-		authData, ok := data.(*AuthData)
+		authData, ok := data.(*models.Claims)
 		if !ok {
 			return nil, ErrCorruptedAuthData
 		} else {
@@ -37,7 +46,7 @@ type AuthMiddleware struct {
 	log      *log.Logger
 }
 
-func New(receiverFunc jwt.Keyfunc) *AuthMiddleware {
+func NewAuthentication(receiverFunc jwt.Keyfunc) *AuthMiddleware {
 	if receiverFunc == nil {
 		panic("receiver cannot be nil")
 	}
@@ -49,7 +58,7 @@ func New(receiverFunc jwt.Keyfunc) *AuthMiddleware {
 }
 
 // TODO: Rename method
-func (m *AuthMiddleware) Check(validators ...AuthValidateFunc) gin.HandlerFunc {
+func (m *AuthMiddleware) Authentication(validators ...AuthValidateFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.Request.Header.Get("Authorization")
 		if tokenString == "" {
@@ -65,34 +74,35 @@ func (m *AuthMiddleware) Check(validators ...AuthValidateFunc) gin.HandlerFunc {
 			return
 		}
 
-		data, err := NewDataFromToken(token)
+		claims, err := claimsFromToken(token)
 		if err != nil {
-			m.log.Error("Failed get authentication data from token", "error", err)
+			m.log.Error("Failed get claims from token", "error", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token content"})
 			return
 		}
 
 		for _, v := range validators {
-			if err := v(*data); err != nil {
+			if err := v(claims); err != nil {
 				m.log.Error("Auth data validation failed, request aborted", "error", err)
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not allowed"})
 				return
 			}
 		}
 
-		c.Set(AuthDataKey, data)
+		c.Set(authenticationDataKey, claims)
 
 		c.Next()
 	}
 }
 
-type AuthValidateFunc func(AuthData) error
+type AuthValidateFunc func(*models.Claims) error
 
 func AdminOnly() AuthValidateFunc {
-	return func(ad AuthData) error {
-		if !ad.IsAdmin() {
-			return fmt.Errorf("current user is not an administrator, roles %v", ad.Roles)
-		}
+	return func(ad *models.Claims) error {
+
+		// if !ad.IsAdmin() { return fmt.Errorf("current user is not an administrator, roles %v", ad.Roles)
+		// }
+		// return nil
 		return nil
 	}
 }

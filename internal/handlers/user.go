@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/internal/database"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/middleware"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/models"
 
 	"github.com/charmbracelet/log"
@@ -11,6 +13,35 @@ import (
 	"github.com/google/uuid"
 	auth "sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/middleware"
 )
+
+func userFromClaims(claims *models.Claims) (*models.User, error) {
+	var user models.User
+	err := database.DB.
+		Joins("Roles", database.DB.Joins("Permissions")).
+		First(&user).
+		Where("id = ?", claims.UserID).Error
+	if err != nil {
+
+		return nil, fmt.Errorf("failed get user with id %q from database: %s", claims.UserID, err)
+	}
+	return &user, nil
+}
+
+func HasPermissions(permissions ...string) middleware.AuthValidateFunc {
+	return func(c *models.Claims) error {
+		user, err := userFromClaims(c)
+		if err != nil {
+			log.Error("Failed get user from claims", "claims", c, "error", err)
+			return fmt.Errorf("failed get user from claims: %s", err)
+		}
+		for _, permission := range permissions {
+			if !user.HasPermission(permission) {
+				return fmt.Errorf("user does not have permission %s", permission)
+			}
+		}
+		return nil
+	}
+}
 
 // ListUsers возвращает список всех пользователей
 func ListUsers(c *gin.Context) {
@@ -73,7 +104,7 @@ func CreateUser(c *gin.Context) {
 func GetSelf(c *gin.Context) {
 	// user, ok := c.Get("user")
 
-	data, err := auth.GetUser(c)
+	data, err := auth.GetClaims(c)
 	if err != nil {
 		log.Error("Failed to fetch user", "error", err)
 		c.AbortWithStatus(http.StatusUnauthorized)
@@ -132,66 +163,80 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := getUserByID(id)
+	updatedUser, err := getUserByID(id)
 	if err != nil {
 		log.Error("Failed to get user", "id", id, "error", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	authData, err := auth.GetUser(c)
+	authData, err := auth.GetClaims(c)
 	if err != nil {
 		log.Error("Failed get auth data", "error", err)
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
+
+	}
+	user, err := userFromClaims(authData)
+	if err != nil {
+		log.Error("Failed to get user from claims", "error", err)
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
 
-	userHasRights := authData.UserID == user.ID || authData.IsAdmin()
-	if !userHasRights {
-		log.Error("Update operation not allowed", "authUserID", authData.UserID, "userID", user.ID.String())
+	userHasRightsToEdit := user.ID == updatedUser.ID || user.HasPermission(models.UpdateUserPermission)
+	if !userHasRightsToEdit {
+		log.Error("Update operation not allowed", "authUserID", authData.UserID, "userID", updatedUser.ID.String())
 		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to update this user"})
 		return
 	}
 
-	user.Name = updateData.Username
-	user.Email = updateData.Email
+	updatedUser.Name = updateData.Username
+	updatedUser.Email = updateData.Email
 
 	if updateData.Password != "" {
-		if err := user.SetPassword(updateData.Password); err != nil {
+		if err := updatedUser.SetPassword(updateData.Password); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set password"})
 			return
 		}
 	}
 
-	if err := database.DB.Save(&user).Error; err != nil {
+	if err := database.DB.Save(&updatedUser).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
 
-	c.JSON(http.StatusOK, user.Hide())
+	c.JSON(http.StatusOK, updatedUser.Hide())
 }
 
-// DeleteUser удаляет пользователя
-func DeleteUser(c *gin.Context) {
+// BlockUser удаляет пользователя
+func BlockUser(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	authData, err := auth.GetUser(c)
+	claims, err := auth.GetClaims(c)
 	if err != nil {
 		log.Error("Failed get auth data", "error", err)
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	if !authData.IsAdmin() {
-		log.Error("Delete operation not allowed for not admins", "authUserID", authData.UserID, "userID", id)
+	user, err := userFromClaims(claims)
+	if err != nil {
+		log.Error("Failed to get user from claims", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
+		return
+	}
+
+	if !user.HasPermission(models.BlockUserPermission) {
+		log.Error("Delete operation not allowed for not admins", "authUserID", claims.UserID, "userID", id)
 		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to delete this user"})
 		return
 	}
-	if id == authData.UserID {
-		log.Error("Delete operation not allowed for self", "userID", authData.UserID)
+	if id == claims.UserID {
+		log.Error("Delete operation not allowed for self", "userID", claims.UserID)
 		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to delete yourself"})
 		return
 	}

@@ -15,15 +15,17 @@ type BaseModel struct {
 
 type User struct {
 	*BaseModel
-	Name         string `json:"username"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"-"`
-	Roles        Roles  `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	Name           string `json:"username"`
+	Email          string `json:"email"`
+	EmailConfirmed bool   `json:"emailConfirmed"`
+	PasswordHash   string `json:"-"`
+	Roles          Roles  `gorm:"many2many:user_roles;" json:"roles,omitempty"`
 }
 
 type Role struct {
 	*BaseModel
-	Name string `gorm:"many2many:user_roles;" json:"name"`
+	Name        string `gorm:"many2many:user_roles;" json:"name"`
+	Permissions string
 }
 
 type Roles []Role

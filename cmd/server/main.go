@@ -49,19 +49,24 @@ func main() {
 	initDatabase(conf)
 	ensureAdminCreated(conf)
 
-	authMiddleware := auth.New(conf.JWTSecret())
+	authMiddleware := auth.NewAuthentication(conf.JWTSecret())
 
 	server := gin.Default()
 
 	{
 		api := server.Group("/api/auth")
 		api.POST("/login", handlers.Login)
-		api.GET("/users/me", authMiddleware.Check(), handlers.GetUser)
-		api.GET("/users", authMiddleware.Check(auth.AdminOnly()), handlers.ListUsers)
-		api.GET("/users/:id", authMiddleware.Check(), handlers.GetUser)
-		api.POST("/users/:id", authMiddleware.Check(), handlers.UpdateUser)
+
+		api.GET("/users", authMiddleware.Authentication(handlers.HasPermissions(models.ListUsersPermission)), handlers.ListUsers)
+		api.GET("/users/me", authMiddleware.Authentication(), handlers.GetUser)
+		api.GET("/users/:id", authMiddleware.Authentication(), handlers.GetUser)
+		api.POST("/users/:id", authMiddleware.Authentication(), handlers.UpdateUser)
+		api.POST("/users/:id/email", authMiddleware.Authentication(handlers.HasPermissions(models.SetEmailPermission)))
+		api.POST("/users/:id/password", authMiddleware.Authentication(handlers.HasPermissions(models.SetEmailPermission)))
 		api.POST("/users", handlers.CreateUser)
-		api.DELETE("/users/:id", handlers.DeleteUser)
+		api.POST("/users/:id/block", authMiddleware.Authentication(
+			handlers.HasPermissions(models.BlockUserPermission)),
+			handlers.BlockUser)
 	}
 
 	// Запуск сервера

@@ -6,7 +6,9 @@ CREATE TABLE
         id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
         name varchar(255) NOT NULL,
         email varchar(255) NOT NULL UNIQUE,
+        email_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
         password_hash TEXT NOT NULL,
+        is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP
     );
@@ -16,7 +18,8 @@ CREATE TABLE
         id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
         name varchar(255) NOT NULL UNIQUE,
         created_at TIMESTAMP NOT NULL,
-        updated_at TIMESTAMP
+        updated_at TIMESTAMP,
+        permissions TEXT NOT NULL DEFAULT ''
     );
 
 CREATE TABLE
