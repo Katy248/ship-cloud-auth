@@ -1,4 +1,4 @@
-FROM golang:latest
+FROM golang:1.25-alpine
 
 WORKDIR /app
 
@@ -6,9 +6,11 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
-RUN go build -o srv cmd/server/main.go
+EXPOSE 8080
 
-EXPOSE 5001
+COPY . .
+ENV GOCACHE=/root/.cache/go-build
+RUN --mount=type=cache,target="/root/.cache/go-build" go build -o srv cmd/api/main.go
+
 
 CMD ["/app/srv"]
