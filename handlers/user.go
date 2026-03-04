@@ -30,7 +30,7 @@ func HandleGetUser(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, user)
+	ctx.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 func HandleGetUsersList(ctx *gin.Context) {

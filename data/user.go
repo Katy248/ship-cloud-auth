@@ -16,12 +16,12 @@ type User struct {
 	*bun.BaseModel   `bun:"table:user"`
 	*TimestampsModel `bun:",embed"`
 
-	ID            uuid.UUID `bun:",pk,type:uuid,default:gen_random_uuid()"`
-	Name          string    `bun:",notnull"`
-	Email         string    `bun:",unique"`
-	EmailVerified bool      `bun:",notnull,default:false"`
-	PasswordHash  []byte    `bun:",notnull"`
-	Blocked       bool      `bun:",notnull,default:false"`
+	ID            uuid.UUID `bun:",pk,type:uuid,default:gen_random_uuid()" json:"id"`
+	Name          string    `bun:",notnull" json:"name"`
+	Email         string    `bun:",unique" json:"email"`
+	EmailVerified bool      `bun:",notnull,default:false" json:"emailVerified"`
+	PasswordHash  []byte    `bun:",notnull" json:"-"`
+	Blocked       bool      `bun:",notnull,default:false" json:"blocked"`
 }
 
 func normalizeEmail(email string) string {
@@ -36,9 +36,21 @@ func hashPassword(password string) []byte {
 	return hash
 }
 
+func (u *User) ComparePassword(password string) bool {
+	return bcrypt.CompareHashAndPassword(u.PasswordHash, []byte(password)) == nil
+}
+
 func GetUser(id uuid.UUID) (*User, error) {
 	var user User
 	err := db.DB.NewSelect().Model(&user).Where("id = ?", id).Scan(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+func GetUserByEmail(email string) (*User, error) {
+	var user User
+	err := db.DB.NewSelect().Model(&user).Where("email = ?", email).Scan(context.TODO())
 	if err != nil {
 		return nil, err
 	}

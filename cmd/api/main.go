@@ -25,6 +25,7 @@ func main() {
 	auth := server.Group("/api/auth")
 	auth.POST("/register", handlers.HandleRegister)
 	auth.POST("/login")
+	auth.POST("/refresh")
 
 	users.GET("/:id", handlers.HandleGetUser)
 	users.GET("/", handlers.HandleGetUsersList)
@@ -36,6 +37,11 @@ func main() {
 
 	roles.GET("/")
 	roles.GET("/:id")
+
+	sessions := server.Group("/api/sessions")
+	sessions.GET("/current", handlers.HandleGetSession)
+	sessions.GET("/", handlers.HandleGetSessionsList)
+	sessions.DELETE("/:id", handlers.HandleDeleteSession)
 
 	server.Run(":8080")
 }

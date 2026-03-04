@@ -1,38 +1,110 @@
 package data
 
 import (
-	"slices"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/keyval"
 )
 
 type Session struct {
+	ID          uuid.UUID `json:"id"`
 	UserID      uuid.UUID `json:"userId"`
-	Blocked     bool      `json:"blocked"`
+	UserBlocked bool      `json:"userBlocked"`
 	Permissions []string  `json:"permissions"`
 }
 
-func (s Session) HasPermission(p string) bool {
-	return slices.Contains(s.Permissions, p)
+type SessionRecord struct {
+	*bun.BaseModel   `bun:"table:sessions"`
+	*TimestampsModel `bun:",embed"`
+
+	SessionID uuid.UUID `bun:"column:,pk,type=uuid,default:gen_random_uuid()" json:"sessionId"`
+	UserID    uuid.UUID `bun:"column:,notnull" json:"userId"`
 }
 
-func (s Session) CanGetUserByID(userID uuid.UUID) bool {
-	if s.UserID == userID {
-		return true
+func newSessionRecord(session *Session) (*SessionRecord, error) {
+	dbSession := SessionRecord{
+		SessionID: session.ID,
+		UserID:    session.UserID,
 	}
-	return s.HasPermission(PermissionUserGetByID)
+	_, err := db.DB.NewInsert().Model(&dbSession).Exec(context.TODO())
+	return &dbSession, err
 }
 
-func (s Session) CanEditUser(userID uuid.UUID) bool {
-	if s.UserID == userID {
-		return true
+const sessionTTL = time.Hour * 24 * 30
+
+func NewSession(userID uuid.UUID) (*Session, error) {
+	session := Session{
+		ID:          uuid.New(),
+		UserID:      userID,
+		UserBlocked: false,      // TODO: get blocked status from database
+		Permissions: []string{}, // TODO: get permissions from database
 	}
-	return s.HasPermission(PermissionUserEdit)
+
+	_, err := newSessionRecord(&session)
+	if err != nil {
+		return nil, err
+	}
+	err = keyval.RDB.Set(context.TODO(), session.ID.String(), session, sessionTTL).Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return &session, nil
 }
 
-const (
-	PermissionUserEdit    = "user.edit"
-	PermissionUserList    = "user.list"
-	PermissionUserBlock   = "user.block"
-	PermissionUserGetByID = "user.get-by-id"
-)
+func GetSession(sessionID uuid.UUID) (*Session, error) {
+	sessionJSON, err := keyval.RDB.Get(context.TODO(), sessionID.String()).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var session Session
+	err = json.Unmarshal([]byte(sessionJSON), &session)
+	if err != nil {
+		return nil, err
+	}
+
+	return &session, nil
+}
+
+func getSessionRecords(userID uuid.UUID) ([]SessionRecord, error) {
+	var records []SessionRecord
+	// TODO: add where statement to filter by TTL
+	err := db.DB.NewSelect().Model(&records).Where("user_id = ?", userID).Scan(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func GetActiveSessions(userID uuid.UUID) ([]*Session, error) {
+	records, err := getSessionRecords(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed get session records: %s", err)
+	}
+
+	var allErr error
+
+	sessions := []*Session{}
+	for _, record := range records {
+		s, err := GetSession(record.SessionID)
+		if err != nil {
+			allErr = errors.Join(allErr, err)
+			continue
+		}
+		sessions = append(sessions, s)
+	}
+
+	return sessions, nil
+}
+
+func DeleteSession(sessionID uuid.UUID) error {
+	return keyval.RDB.Del(context.TODO(), sessionID.String()).Err()
+}

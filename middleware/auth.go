@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/keyval"
 )
 
 var sessionKey = "session-" + uuid.New().String()
@@ -39,24 +37,23 @@ func WithAuthentication(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
 		return
 	}
-	sessionID := token.Claims.(jwt.RegisteredClaims).ID
+	sessionIDstr := token.Claims.(jwt.RegisteredClaims).ID
 
-	sessionJSON, err := keyval.RDB.Get(ctx.Request.Context(), sessionID).Result()
+	sID, err := uuid.Parse(sessionIDstr)
 	if err != nil {
-		log.Error("Failed receive session data from Redis", "error", err)
+		log.Error("Failed parse session ID", "error", err)
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
 		return
 	}
 
-	var session data.Session
-	err = json.Unmarshal([]byte(sessionJSON), &session)
+	session, err := data.GetSession(sID)
 	if err != nil {
-		log.Error("Failed unmarshal session data", "error", err)
+		log.Error("Failed get session", "error", err)
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
 		return
 	}
 
-	if session.Blocked {
+	if session.UserBlocked {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"details": "session blocked"})
 
 	}
