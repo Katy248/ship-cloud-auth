@@ -23,8 +23,8 @@ func WithAuthentication(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	token, err := jwt.ParseWithClaims(header, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return config.Config.GetString("jwt-security-key"), nil
+	token, err := jwt.ParseWithClaims(header, &jwt.RegisteredClaims{}, func(token *jwt.Token) (any, error) {
+		return config.SecurityKey(), nil
 	})
 
 	if err != nil {
@@ -37,7 +37,7 @@ func WithAuthentication(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
 		return
 	}
-	sessionIDstr := token.Claims.(jwt.RegisteredClaims).ID
+	sessionIDstr := token.Claims.(*jwt.RegisteredClaims).ID
 
 	sID, err := uuid.Parse(sessionIDstr)
 	if err != nil {
@@ -62,10 +62,10 @@ func WithAuthentication(ctx *gin.Context) {
 
 }
 
-func GetSession(ctx *gin.Context) data.Session {
+func GetSession(ctx *gin.Context) *data.Session {
 	session, ok := ctx.Get(sessionKey)
 	if !ok {
 		panic(fmt.Errorf("session not found (key %q), probably not authenticated", sessionKey))
 	}
-	return session.(data.Session)
+	return session.(*data.Session)
 }

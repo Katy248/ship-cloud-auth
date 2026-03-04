@@ -49,6 +49,7 @@ func GetUser(id uuid.UUID) (*User, error) {
 	return &user, nil
 }
 func GetUserByEmail(email string) (*User, error) {
+	email = normalizeEmail(email)
 	var user User
 	err := db.DB.NewSelect().Model(&user).Where("email = ?", email).Scan(context.TODO())
 	if err != nil {

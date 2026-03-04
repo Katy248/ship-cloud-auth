@@ -16,3 +16,7 @@ func Setup() {
 	Config.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 	Config.AutomaticEnv()
 }
+
+func SecurityKey() []byte {
+	return []byte(Config.GetString("jwt-security-key"))
+}

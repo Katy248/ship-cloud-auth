@@ -18,7 +18,7 @@ func Migrate() {
 	ctx := context.TODO()
 	models := []interface{}{
 		(*User)(nil),
-		(*Session)(nil),
+		(*SessionRecord)(nil),
 	}
 
 	for _, model := range models {

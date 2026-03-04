@@ -24,8 +24,8 @@ type SessionRecord struct {
 	*bun.BaseModel   `bun:"table:sessions"`
 	*TimestampsModel `bun:",embed"`
 
-	SessionID uuid.UUID `bun:"column:,pk,type=uuid,default:gen_random_uuid()" json:"sessionId"`
-	UserID    uuid.UUID `bun:"column:,notnull" json:"userId"`
+	SessionID uuid.UUID `bun:",type=uuid,pk" json:"sessionId"`
+	UserID    uuid.UUID `bun:",type=uuid,notnull" json:"userId"`
 }
 
 func newSessionRecord(session *Session) (*SessionRecord, error) {
@@ -51,7 +51,11 @@ func NewSession(userID uuid.UUID) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = keyval.RDB.Set(context.TODO(), session.ID.String(), session, sessionTTL).Err()
+	data, err := json.Marshal(session)
+	if err != nil {
+		return nil, fmt.Errorf("failed marshal Session to JSON: %s", err)
+	}
+	err = keyval.RDB.Set(context.TODO(), session.ID.String(), data, sessionTTL).Err()
 	if err != nil {
 		return nil, err
 	}

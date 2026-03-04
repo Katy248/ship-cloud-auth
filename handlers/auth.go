@@ -14,10 +14,6 @@ import (
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
 )
 
-func getSecurityKey() string {
-	return config.Config.GetString("jwt-security-key")
-}
-
 func HandleRegister(c *gin.Context) {
 	var request struct {
 		Name     string `json:"name" binding:"required"`
@@ -111,29 +107,28 @@ func HandleRefresh(c *gin.Context) {
 const tokenTTL = time.Minute * 10
 const refreshTokenTTL = time.Hour * 24
 
-func createJWT(session *data.Session) string {
-
-	claims := jwt.MapClaims{
-		"id":  session.ID,
-		"exp": time.Now().Add(tokenTTL).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES384, claims)
-	signed, err := token.SignedString(getSecurityKey())
+func newJWT(claims jwt.Claims) string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	signed, err := token.SignedString(config.SecurityKey())
 	if err != nil {
 		panic(fmt.Errorf("failed sign JWT: %s", err))
 	}
 	return signed
 }
 
+func createJWT(session *data.Session) string {
+
+	claims := jwt.RegisteredClaims{
+		ID:        session.ID.String(),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenTTL)),
+	}
+	return newJWT(claims)
+}
 func createRefreshJWT(session *data.Session) string {
-	claims := jwt.MapClaims{
-		"id":  session.ID,
-		"exp": time.Now().Add(refreshTokenTTL).Unix(),
+	claims := jwt.RegisteredClaims{
+		ID:        session.ID.String(),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(refreshTokenTTL)),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES384, claims)
-	signed, err := token.SignedString(getSecurityKey())
-	if err != nil {
-		panic(fmt.Errorf("failed sign JWT: %s", err))
-	}
-	return signed
+
+	return newJWT(claims)
 }
