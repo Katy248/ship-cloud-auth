@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -28,6 +29,11 @@ func WithAuthentication(ctx *gin.Context) {
 	})
 
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			log.Error("JWT expired", "error", err)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "token expired"})
+			return
+		}
 		log.Error("Failed parse JWT", "error", err)
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
 		return
