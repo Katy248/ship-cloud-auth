@@ -1,108 +1,74 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/models"
-
-	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/keyval"
 )
 
-const authenticationDataKey = "middleware-auth-data"
+var sessionKey = "session-" + uuid.New().String()
 
-func claimsFromToken(t *jwt.Token) (*models.Claims, error) {
-	claims, ok := t.Claims.(*models.Claims)
+const AuthorizationHeader = "Authorization"
+
+func WithAuthentication(ctx *gin.Context) {
+	header := ctx.GetHeader(AuthorizationHeader)
+
+	if header == "" {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	token, err := jwt.ParseWithClaims(header, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return config.Config.GetString("jwt-security-key"), nil
+	})
+
+	if err != nil {
+		log.Error("Failed parse JWT", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
+		return
+	}
+	if !token.Valid {
+		log.Error("Invalid JWT", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
+		return
+	}
+	sessionID := token.Claims.(jwt.RegisteredClaims).ID
+
+	sessionJSON, err := keyval.RDB.Get(ctx.Request.Context(), sessionID).Result()
+	if err != nil {
+		log.Error("Failed receive session data from Redis", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
+		return
+	}
+
+	var session data.Session
+	err = json.Unmarshal([]byte(sessionJSON), &session)
+	if err != nil {
+		log.Error("Failed unmarshal session data", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "bad credentials"})
+		return
+	}
+
+	if session.Blocked {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"details": "session blocked"})
+
+	}
+
+	ctx.Set(sessionKey, session)
+
+}
+
+func GetSession(ctx *gin.Context) data.Session {
+	session, ok := ctx.Get(sessionKey)
 	if !ok {
-		return nil, fmt.Errorf("failed get jwt.MapClaims from token.Claims")
+		panic(fmt.Errorf("session not found (key %q), probably not authenticated", sessionKey))
 	}
-
-	return claims, nil
-}
-
-var (
-	ErrNoAuthData        = fmt.Errorf("no auth data in current request context")
-	ErrCorruptedAuthData = fmt.Errorf("corrupted auth data in current request context")
-)
-
-// TODO: fix nested if statements
-func GetClaims(c *gin.Context) (*models.Claims, error) {
-	if data, exists := c.Get(authenticationDataKey); !exists {
-		return nil, ErrNoAuthData
-	} else {
-		authData, ok := data.(*models.Claims)
-		if !ok {
-			return nil, ErrCorruptedAuthData
-		} else {
-			return authData, nil
-		}
-	}
-}
-
-type AuthMiddleware struct {
-	receiver jwt.Keyfunc
-	log      *log.Logger
-}
-
-func NewAuthentication(receiverFunc jwt.Keyfunc) *AuthMiddleware {
-	if receiverFunc == nil {
-		panic("receiver cannot be nil")
-	}
-
-	return &AuthMiddleware{
-		receiver: receiverFunc,
-		log:      log.WithPrefix("authentication"),
-	}
-}
-
-// TODO: Rename method
-func (m *AuthMiddleware) Authentication(validators ...AuthValidateFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tokenString := c.Request.Header.Get("Authorization")
-		if tokenString == "" {
-			m.log.Error("Authentication failed with no token specified in Authorization header")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "no token specified"})
-			return
-		}
-
-		token, err := jwt.ParseWithClaims(tokenString, &models.Claims{}, m.receiver)
-		if err != nil {
-			m.log.Error("Invalid token", "error", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token: " + err.Error()})
-			return
-		}
-
-		claims, err := claimsFromToken(token)
-		if err != nil {
-			m.log.Error("Failed get claims from token", "error", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token content"})
-			return
-		}
-
-		for _, v := range validators {
-			if err := v(claims); err != nil {
-				m.log.Error("Auth data validation failed, request aborted", "error", err)
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not allowed"})
-				return
-			}
-		}
-
-		c.Set(authenticationDataKey, claims)
-
-		c.Next()
-	}
-}
-
-type AuthValidateFunc func(*models.Claims) error
-
-func AdminOnly() AuthValidateFunc {
-	return func(ad *models.Claims) error {
-
-		// if !ad.IsAdmin() { return fmt.Errorf("current user is not an administrator, roles %v", ad.Roles)
-		// }
-		// return nil
-		return nil
-	}
+	return session.(data.Session)
 }
