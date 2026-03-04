@@ -13,13 +13,16 @@ services:
     environment:
       PORT: 8080
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
-      REDIS_ADDRESS: localhost:6379
+      REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: ""
+      JWT_SECURITY_KEY: "your_jwt_security_key_here"
     depends_on:
       - postgres
   postgres:
     image: postgres:18
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
