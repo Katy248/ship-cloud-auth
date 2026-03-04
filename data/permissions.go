@@ -13,6 +13,15 @@ const (
 	PermissionUserGetByID = "user.get-by-id"
 )
 
+func GetAllPermissions() []string {
+	return []string{
+		PermissionUserEdit,
+		PermissionUserList,
+		PermissionUserBlock,
+		PermissionUserGetByID,
+	}
+}
+
 func (s Session) HasPermission(p string) bool {
 	return slices.Contains(s.Permissions, p)
 }

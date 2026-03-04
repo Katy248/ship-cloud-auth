@@ -43,5 +43,7 @@ func main() {
 	sessions.GET("/", handlers.HandleGetSessionsList)
 	sessions.DELETE("/:id", handlers.HandleDeleteSession)
 
+	server.GET("/api/permissions", handlers.HandleGetPermissions)
+
 	server.Run(":8080")
 }
