@@ -24,8 +24,8 @@ func main() {
 
 	auth := server.Group("/api/auth")
 	auth.POST("/register", handlers.HandleRegister)
-	auth.POST("/login")
-	auth.POST("/refresh")
+	auth.POST("/login", handlers.HandleLogin)
+	auth.POST("/refresh", handlers.HandleRefresh)
 
 	users.GET("/:id", handlers.HandleGetUser)
 	users.GET("/", handlers.HandleGetUsersList)
