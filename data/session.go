@@ -24,8 +24,8 @@ type SessionRecord struct {
 	*bun.BaseModel   `bun:"table:sessions"`
 	*TimestampsModel `bun:",embed"`
 
-	SessionID uuid.UUID `bun:",type=uuid,pk" json:"sessionId"`
-	UserID    uuid.UUID `bun:",type=uuid,notnull" json:"userId"`
+	SessionID uuid.UUID `bun:",type:uuid,pk" json:"sessionId"`
+	UserID    uuid.UUID `bun:",type:uuid,notnull" json:"userId"`
 }
 
 func newSessionRecord(session *Session) (*SessionRecord, error) {
