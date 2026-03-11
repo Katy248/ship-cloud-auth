@@ -21,13 +21,15 @@ func WithAuthentication(ctx *gin.Context) {
 	header := ctx.GetHeader(AuthorizationHeader)
 
 	if header == "" {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		err := fmt.Errorf("unauthorized: header %q not specified", AuthorizationHeader)
+		log.Error("No authorization header", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": err})
 		return
 	}
+
 	token, err := jwt.ParseWithClaims(header, &jwt.RegisteredClaims{}, func(token *jwt.Token) (any, error) {
 		return config.SecurityKey(), nil
 	})
-
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			log.Error("JWT expired", "error", err)
@@ -61,7 +63,6 @@ func WithAuthentication(ctx *gin.Context) {
 
 	if session.UserBlocked {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"details": "session blocked"})
-
 	}
 
 	ctx.Set(sessionKey, session)
