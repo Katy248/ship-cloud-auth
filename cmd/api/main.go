@@ -20,21 +20,19 @@ func main() {
 
 	server := gin.Default()
 
-	users := server.Group("/api/users", middleware.WithAuthentication)
-
 	auth := server.Group("/api/auth")
 	auth.POST("/register", handlers.HandleRegister)
 	auth.POST("/login", handlers.HandleLogin)
 	auth.POST("/refresh", handlers.HandleRefresh)
 
+	users := server.Group("/api/users", middleware.WithAuthentication)
 	users.GET("/:id", handlers.HandleGetUser)
 	users.GET("/", handlers.HandleGetUsersList)
 	users.POST("/:id/set-password", handlers.HandleUserSetPassword)
 	users.POST("/:id/set-email", handlers.HandleUserSetEmail)
 	users.POST("/:id/block", handlers.HandleUserBlock)
 
-	roles := server.Group("/api/roles")
-
+	roles := server.Group("/api/roles", middleware.WithAuthentication)
 	roles.GET("/")
 	roles.GET("/:id")
 
