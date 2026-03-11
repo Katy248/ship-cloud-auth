@@ -38,7 +38,7 @@ func main() {
 	roles.GET("/")
 	roles.GET("/:id")
 
-	sessions := server.Group("/api/sessions")
+	sessions := server.Group("/api/sessions", middleware.WithAuthentication)
 	sessions.GET("/current", handlers.HandleGetSession)
 	sessions.GET("/", handlers.HandleGetSessionsList)
 	sessions.DELETE("/:id", handlers.HandleDeleteSession)
