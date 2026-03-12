@@ -10,7 +10,7 @@ import (
 var Config *viper.Viper
 
 func Setup() {
-	godotenv.Load()
+	_ = godotenv.Load()
 
 	Config = viper.New()
 	Config.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))

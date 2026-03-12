@@ -59,7 +59,7 @@ func GetUserByEmail(email string) (*User, error) {
 }
 
 var (
-	EmailAlreadyTakenErr = errors.New("email already taken")
+	ErrEmailAlreadyTaken = errors.New("email already taken")
 )
 
 // Creates new user in database
@@ -71,7 +71,7 @@ func NewUser(name, email, password string) (*User, error) {
 	if taken, err := checkEmailTaken(email); err != nil {
 		return nil, fmt.Errorf("failed check email availability: %s", err)
 	} else if taken {
-		return nil, EmailAlreadyTakenErr
+		return nil, ErrEmailAlreadyTaken
 	}
 
 	user := User{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
@@ -14,7 +15,11 @@ func main() {
 	config.Setup()
 	db.Setup()
 	keyval.Setup()
-	defer keyval.RDB.Close()
+	defer func() {
+		if err := keyval.RDB.Close(); err != nil {
+			log.Error("failed to close redis", "error", err)
+		}
+	}()
 
 	data.Migrate()
 
@@ -43,5 +48,7 @@ func main() {
 
 	server.GET("/api/permissions", handlers.HandleGetPermissions)
 
-	server.Run(":8080")
+	if err := server.Run(":8080"); err != nil {
+		log.Fatal("failed to start server", "error", err)
+	}
 }

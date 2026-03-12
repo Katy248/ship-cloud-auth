@@ -29,7 +29,7 @@ func HandleRegister(c *gin.Context) {
 		request.Name, request.Email, request.Password,
 	)
 	if err != nil {
-		if errors.Is(err, data.EmailAlreadyTakenErr) {
+		if errors.Is(err, data.ErrEmailAlreadyTaken) {
 			c.AbortWithStatusJSON(http.StatusConflict, gin.H{
 				"details": "email already taken",
 			})
