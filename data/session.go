@@ -16,6 +16,7 @@ import (
 type Session struct {
 	ID          uuid.UUID `json:"id"`
 	UserID      uuid.UUID `json:"userId"`
+	Email       string    `json:"email"`
 	UserBlocked bool      `json:"userBlocked"`
 	Permissions []string  `json:"permissions"`
 }
@@ -40,14 +41,20 @@ func newSessionRecord(session *Session) (*SessionRecord, error) {
 const sessionTTL = time.Hour * 24 * 30
 
 func NewSession(userID uuid.UUID) (*Session, error) {
+	user, err := GetUser(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed get user: %s", err)
+	}
+
 	session := Session{
 		ID:          uuid.New(),
 		UserID:      userID,
-		UserBlocked: false,      // TODO: get blocked status from database
+		Email:       user.Email,
+		UserBlocked: user.Blocked,
 		Permissions: []string{}, // TODO: get permissions from database
 	}
 
-	_, err := newSessionRecord(&session)
+	_, err = newSessionRecord(&session)
 	if err != nil {
 		return nil, err
 	}
