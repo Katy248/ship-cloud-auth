@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,13 @@ func WithAuthentication(ctx *gin.Context) {
 		err := fmt.Errorf("unauthorized: header %q not specified", AuthorizationHeader)
 		log.Error("No authorization header", "error", err)
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": err})
+		return
+	}
+
+	if strings.Contains(header, "Bearer") {
+		err := fmt.Errorf("token malformed: Armen includes 'Bearer' in tokent")
+		log.Error("Армен, заебал, пиши авторизацию сам, а не ИИшкой", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": err, "armensMessage": "go fuck yourself"})
 		return
 	}
 
