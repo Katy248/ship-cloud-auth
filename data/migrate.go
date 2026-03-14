@@ -3,7 +3,7 @@ package data
 import (
 	"context"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	migrate "github.com/rubenv/sql-migrate"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
 )

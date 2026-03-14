@@ -26,6 +26,11 @@ const (
 	PermissionOrganizationDisconnectDevice = "organization.devices.disconnect"
 	PermissionOrganizationDeviceEditTags   = "organization.devices.edit-tags"
 	PermissionOrganizationTagsEdit         = "organization.tags.edit"
+
+	PermissionDeviceList   = "device.list"
+	PermissionDeviceCreate = "device.create"
+	PermissionDeviceEdit   = "device.edit"
+	PermissionDeviceDelete = "device.delete"
 )
 
 func GetAllPermissions() []string {

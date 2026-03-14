@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/katy248/auth"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/handlers"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/keyval"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/middleware"
 )
 
 func main() {
@@ -23,6 +23,7 @@ func main() {
 
 	data.Migrate()
 
+	middleware := auth.DefaultMiddleware(config.Config)
 	server := gin.Default()
 
 	auth := server.Group("/api/auth")

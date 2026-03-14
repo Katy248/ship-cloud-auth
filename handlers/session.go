@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
