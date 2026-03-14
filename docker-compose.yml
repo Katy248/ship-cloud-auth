@@ -1,9 +1,16 @@
 volumes:
-  postgres_data:
+  auth_data:
   redis_data:
+  orgs_data:
+
+networks:
+  auth-net:
+    driver: bridge
+  orgs-net:
+    driver: bridge
 
 services:
-  api:
+  auth-api:
     restart: unless-stopped
     build:
       context: .
@@ -12,24 +19,27 @@ services:
       - "8080:8080"
     environment:
       PORT: 8080
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@auth-db:5432/postgres?sslmode=disable
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: ""
       JWT_SECURITY_KEY: "your_jwt_security_key_here"
     depends_on:
-      - postgres
-  postgres:
+      - auth-db
+      - redis
+    networks:
+      - auth-net
+  auth-db:
+    networks:
+      - auth-net
     image: postgres:18
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
       PGDATA: /var/lib/postgresql/data
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - auth_data:/var/lib/postgresql/data
   redis:
     image: redis:latest
     restart: unless-stopped
@@ -37,3 +47,31 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+  orgs-api:
+    restart: unless-stopped
+    build: https://git@git.sourcecraft.dev/organization-shipmonitor/ship-cloud-organizations.git
+    ports:
+      - "8081:8080"
+    environment:
+      PORT: 8080
+      DB_CONNECTION_STRING: postgres://postgres:postgres@orgs-db:5432/postgres?sslmode=disable
+      REDIS_ADDRESS: redis:6379
+      REDIS_PASSWORD: ""
+      JWT_SECURITY_KEY: "your_jwt_security_key_here"
+    depends_on:
+      - orgs-db
+      - auth-api
+    networks:
+      - orgs-net
+  orgs-db:
+    networks:
+      - orgs-net
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - orgs_data:/var/lib/postgresql/data
