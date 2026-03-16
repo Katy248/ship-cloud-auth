@@ -8,6 +8,7 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/auth"
@@ -15,16 +16,44 @@ import (
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
 )
 
+func mapErrors(vErrors validator.ValidationErrors) []gin.H {
+	res := []gin.H{}
+
+	for _, err := range vErrors {
+		res = append(res, gin.H{
+			"field":       err.Field(),
+			"error":       err.Error(),
+			"actualTag":   err.ActualTag(),
+			"tag":         err.Tag(),
+			"structField": err.StructField(),
+		})
+	}
+	return res
+}
+
+func bindJSON(ctx *gin.Context, data any) {
+
+	if err := ctx.ShouldBindJSON(data); err != nil {
+		if vErrors, ok := err.(validator.ValidationErrors); ok {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"details":          "body validation fails",
+				"validationErrors": mapErrors(vErrors),
+			})
+			panic("validation fails")
+
+		}
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"details": "failed get JSON body: " + err.Error()})
+		return
+	}
+}
+
 func HandleRegister(c *gin.Context) {
 	var request struct {
 		Name     string `json:"name" binding:"required"`
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	if err := c.BindJSON(&request); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
-		return
-	}
+	bindJSON(c, &request)
 
 	user, err := data.NewUser(
 		request.Name, request.Email, request.Password,
@@ -49,10 +78,7 @@ func HandleLogin(c *gin.Context) {
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"details": "bad body: " + err.Error()})
-		return
-	}
+	bindJSON(c, request)
 
 	user, err := data.GetUserByEmail(request.Email)
 	if err != nil {
@@ -81,10 +107,7 @@ func HandleRefresh(c *gin.Context) {
 	var request struct {
 		RefreshToken string `json:"refreshToken" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"details": err.Error()})
-		return
-	}
+	bindJSON(c, request)
 
 	middleware := auth.GetMiddleware(c)
 
