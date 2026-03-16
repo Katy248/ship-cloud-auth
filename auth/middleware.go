@@ -113,7 +113,8 @@ func (m *Middleware) addToContext(ctx *gin.Context) {
 func (m *Middleware) WithMiddlewareOnly(ctx *gin.Context) {
 	m.addToContext(ctx)
 }
-func (m *Middleware) WithAuthentication(ctx *gin.Context) {
+
+func (m *Middleware) WithAuthenticationRequired(ctx *gin.Context) {
 	m.addToContext(ctx)
 
 	header := ctx.GetHeader(AuthorizationHeader)

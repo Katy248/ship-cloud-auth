@@ -32,14 +32,14 @@ func main() {
 	auth.POST("/login", handlers.HandleLogin)
 	auth.POST("/refresh", middleware.WithMiddlewareOnly, handlers.HandleRefresh)
 
-	users := server.Group("/api/users", middleware.WithAuthentication)
+	users := server.Group("/api/users", middleware.WithAuthenticationRequired)
 	users.GET("/:id", handlers.HandleGetUser)
 	users.GET("/", handlers.HandleGetUsersList)
 	users.POST("/:id/set-password", handlers.HandleUserSetPassword)
 	users.POST("/:id/set-email", handlers.HandleUserSetEmail)
 	users.POST("/:id/block", handlers.HandleUserBlock)
 
-	roles := server.Group("/api/roles", middleware.WithAuthentication)
+	roles := server.Group("/api/roles", middleware.WithAuthenticationRequired)
 	roles.GET("/")
 	roles.GET("/:id")
 
