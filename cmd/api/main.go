@@ -3,7 +3,7 @@ package main
 import (
 	"charm.land/log/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/katy248/auth"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/auth"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
@@ -23,13 +23,14 @@ func main() {
 
 	data.Migrate()
 
+	config.Config.RegisterAlias("jwt-security-key", "security-key")
 	middleware := auth.DefaultMiddleware(config.Config)
 	server := gin.Default()
 
 	auth := server.Group("/api/auth")
 	auth.POST("/register", handlers.HandleRegister)
 	auth.POST("/login", handlers.HandleLogin)
-	auth.POST("/refresh", handlers.HandleRefresh)
+	auth.POST("/refresh", middleware.WithMiddlewareOnly, handlers.HandleRefresh)
 
 	users := server.Group("/api/users", middleware.WithAuthentication)
 	users.GET("/:id", handlers.HandleGetUser)
@@ -41,11 +42,6 @@ func main() {
 	roles := server.Group("/api/roles", middleware.WithAuthentication)
 	roles.GET("/")
 	roles.GET("/:id")
-
-	sessions := server.Group("/api/sessions", middleware.WithAuthentication)
-	sessions.GET("/current", handlers.HandleGetSession)
-	sessions.GET("/", handlers.HandleGetSessionsList)
-	sessions.DELETE("/:id", handlers.HandleDeleteSession)
 
 	server.GET("/api/permissions", handlers.HandleGetPermissions)
 

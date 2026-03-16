@@ -1,2 +1,7 @@
 .env
 *.sql
+Dockerfile
+docker-compose.yml
+.editorconfig
+.git/
+*.adoc

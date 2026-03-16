@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/katy248/auth"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/middleware"
 )
 
 func HandleGetUser(ctx *gin.Context) {
@@ -17,8 +17,8 @@ func HandleGetUser(ctx *gin.Context) {
 		return
 	}
 
-	session := middleware.GetSession(ctx)
-	if !session.CanGetUserByID(id) {
+	session := auth.GetSession(ctx)
+	if session.UserID != id {
 		ctx.AbortWithStatus(http.StatusNotFound)
 		return
 
@@ -34,12 +34,6 @@ func HandleGetUser(ctx *gin.Context) {
 }
 
 func HandleGetUsersList(ctx *gin.Context) {
-	session := middleware.GetSession(ctx)
-	if session.HasPermission(data.PermissionUserList) {
-		ctx.AbortWithStatusJSON(http.StatusMethodNotAllowed, gin.H{"details": "you don't have permission to list users"})
-		return
-	}
-
 	page := 0
 
 	pageStr, ok := ctx.GetQuery("page")
@@ -68,8 +62,8 @@ func HandleUserSetPassword(ctx *gin.Context) {
 		return
 	}
 
-	session := middleware.GetSession(ctx)
-	if !session.CanEditUser(id) {
+	session := auth.GetSession(ctx)
+	if session.UserID != id {
 		ctx.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -104,8 +98,8 @@ func HandleUserSetEmail(ctx *gin.Context) {
 		return
 	}
 
-	session := middleware.GetSession(ctx)
-	if !session.CanEditUser(id) {
+	session := auth.GetSession(ctx)
+	if session.UserID != id {
 		ctx.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -140,9 +134,9 @@ func HandleUserBlock(ctx *gin.Context) {
 		return
 	}
 
-	session := middleware.GetSession(ctx)
-	if !session.HasPermission(data.PermissionUserBlock) {
-		ctx.AbortWithStatus(http.StatusMethodNotAllowed)
+	session := auth.GetSession(ctx)
+	if session.UserID != id {
+		ctx.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 

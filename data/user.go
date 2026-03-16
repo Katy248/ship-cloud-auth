@@ -153,11 +153,3 @@ func GetUsersList(page int) ([]User, error) {
 
 	return users, nil
 }
-
-func (u *User) CanEdit(session Session) bool {
-	if session.UserID == u.ID {
-		return true
-	}
-
-	return session.HasPermission(PermissionUserEdit)
-}

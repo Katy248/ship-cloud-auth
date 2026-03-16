@@ -10,6 +10,7 @@ networks:
     driver: bridge
 
 services:
+  # AUTH SERVICE
   auth-api:
     restart: unless-stopped
     build:
@@ -20,14 +21,15 @@ services:
     environment:
       PORT: 8080
       DATABASE_URL: postgres://postgres:postgres@auth-db:5432/postgres?sslmode=disable
-      REDIS_ADDRESS: redis:6379
-      REDIS_PASSWORD: ""
-      JWT_SECURITY_KEY: "your_jwt_security_key_here"
+      SECURITY_KEY: "your_jwt_security_key_here"
+      SPICEDB_ADDRESS: spice:50051
+      SPICEDB_API_KEY: somerandomkey
     depends_on:
       - auth-db
-      - redis
+      - spice
     networks:
       - auth-net
+  # AUTH SERVICE DATABASE
   auth-db:
     networks:
       - auth-net
@@ -40,38 +42,61 @@ services:
       PGDATA: /var/lib/postgresql/data
     volumes:
       - auth_data:/var/lib/postgresql/data
-  redis:
-    image: redis:latest
-    restart: unless-stopped
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-  orgs-api:
-    restart: unless-stopped
-    build: https://git@git.sourcecraft.dev/organization-shipmonitor/ship-cloud-organizations.git
-    ports:
-      - "8081:8080"
-    environment:
-      PORT: 8080
-      DB_CONNECTION_STRING: postgres://postgres:postgres@orgs-db:5432/postgres?sslmode=disable
-      REDIS_ADDRESS: redis:6379
-      REDIS_PASSWORD: ""
-      JWT_SECURITY_KEY: "your_jwt_security_key_here"
+      - "5432:5432"
+  # SPICE for permissions
+  spice:
+    image: quay.io/authzed/spicedb:latest
     depends_on:
-      - orgs-db
-      - auth-api
-    networks:
-      - orgs-net
-  orgs-db:
-    networks:
-      - orgs-net
-    image: postgres:18
+      - auth-db
+      - spice-migrate
     restart: unless-stopped
+    command: serve
+    ports:
+      - "50051:50051"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-      PGDATA: /var/lib/postgresql/data
-    volumes:
-      - orgs_data:/var/lib/postgresql/data
+      SPICEDB_GRPC_PRESHARED_KEY: somerandomkey
+      SPICEDB_LOG_LEVEL: debug
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: postgres://postgres:postgres@auth-db:5432/postgres?sslmode=disable
+    networks:
+      - auth-net
+  # SPICE MIGRATION
+  spice-migrate:
+    image: quay.io/authzed/spicedb:latest
+    depends_on:
+      - auth-db
+    command: migrate head
+    environment:
+      SPICEDB_GRPC_PRESHARED_KEY: somerandomkey
+      SPICEDB_LOG_LEVEL: debug
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: postgres://postgres:postgres@auth-db:5432/postgres?sslmode=disable
+    networks:
+      - auth-net
+  # orgs-api:
+  #   restart: unless-stopped
+  #   build: https://git@git.sourcecraft.dev/organization-shipmonitor/ship-cloud-organizations.git
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     PORT: 8080
+  #     DB_CONNECTION_STRING: postgres://postgres:postgres@orgs-db:5432/postgres?sslmode=disable
+  #     JWT_SECURITY_KEY: "your_jwt_security_key_here"
+  #   depends_on:
+  #     - orgs-db
+  #     - auth-api
+  #   networks:
+  #     - orgs-net
+  # orgs-db:
+  #   networks:
+  #     - orgs-net
+  #   image: postgres:18
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: postgres
+  #     PGDATA: /var/lib/postgresql/data
+  #   volumes:
+  #     - orgs_data:/var/lib/postgresql/data

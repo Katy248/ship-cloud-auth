@@ -18,7 +18,6 @@ func Migrate() {
 	ctx := context.TODO()
 	models := []interface{}{
 		(*User)(nil),
-		(*SessionRecord)(nil),
 	}
 
 	for _, model := range models {
@@ -30,14 +29,15 @@ func Migrate() {
 	}
 }
 
-// const dialoct = "postgres"
-
-// const dialoct = "sqlite"
+const (
+	DialectPostgres = "postgres"
+	DialectSqlite   = "sqlite"
+)
 
 func Migrate2() {
 	migrations := getMigrationSource()
 	sqlDb := db.DB.DB
-	count, err := migrate.Exec(sqlDb, "postgres", migrations, migrate.Up)
+	count, err := migrate.Exec(sqlDb, DialectPostgres, migrations, migrate.Up)
 
 	panicIfErr(err)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/auth"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
 )
@@ -48,8 +49,8 @@ func HandleLogin(c *gin.Context) {
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	if err := c.BindJSON(&request); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"details": "bad body: " + err.Error()})
 		return
 	}
 
@@ -67,19 +68,12 @@ func HandleLogin(c *gin.Context) {
 		return
 	}
 
-	session, err := data.NewSession(user.ID)
-	if err != nil {
-		log.Error("Failed create new session", "error", err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{})
-		return
-	}
-
-	log.Info("New session", "session", session)
+	token, refreshToken := createTokens(user.ID, user.Email)
 
 	c.JSON(http.StatusOK, gin.H{
 		"user":         user,
-		"token":        createJWT(session),
-		"refreshToken": createRefreshJWT(session),
+		"token":        token,
+		"refreshToken": refreshToken,
 	})
 }
 
@@ -91,23 +85,40 @@ func HandleRefresh(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"details": err.Error()})
 		return
 	}
-	session, err := data.GetSession(uuid.MustParse(request.RefreshToken))
+
+	middleware := auth.GetMiddleware(c)
+
+	claims, err := middleware.ParseToken(request.RefreshToken)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "invalid refresh token"})
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "invalid refresh token: " + err.Error()})
 		return
 	}
 
+	user, err := data.GetUser(claims.UserID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"details": "user specified in token not found"})
+		return
+	}
+
+	token, refreshToken := createTokens(user.ID, user.Email)
+
 	c.JSON(http.StatusOK, gin.H{
-		"token":        createJWT(session),
-		"refreshToken": createRefreshJWT(session),
+		"token":        token,
+		"refreshToken": refreshToken,
 	})
 
 }
 
-const tokenTTL = time.Minute * 10
+const tokenTTL = time.Minute * 5
 const refreshTokenTTL = time.Hour * 24
 
-func newJWT(claims jwt.Claims) string {
+func createTokens(userID uuid.UUID, email string) (token string, refreshToken string) {
+	token = createJWT(userID, email)
+	refreshToken = createRefreshJWT(userID)
+	return token, refreshToken
+}
+
+func newJWT(claims auth.Claims) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	signed, err := token.SignedString(config.SecurityKey())
 	if err != nil {
@@ -116,18 +127,25 @@ func newJWT(claims jwt.Claims) string {
 	return signed
 }
 
-func createJWT(session *data.Session) string {
+func createJWT(userID uuid.UUID, email string) (token string) {
 
-	claims := jwt.RegisteredClaims{
-		ID:        session.ID.String(),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenTTL)),
+	claims := auth.Claims{
+		UserID: userID,
+		Email:  email,
+		RegisteredClaims: &jwt.RegisteredClaims{
+			ID:        uuid.New().String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenTTL)),
+		},
 	}
 	return newJWT(claims)
 }
-func createRefreshJWT(session *data.Session) string {
-	claims := jwt.RegisteredClaims{
-		ID:        session.ID.String(),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(refreshTokenTTL)),
+func createRefreshJWT(userID uuid.UUID) string {
+	claims := auth.Claims{
+		UserID: userID,
+		RegisteredClaims: &jwt.RegisteredClaims{
+			ID:        uuid.New().String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(refreshTokenTTL)),
+		},
 	}
 
 	return newJWT(claims)
