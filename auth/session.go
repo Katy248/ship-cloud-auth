@@ -16,6 +16,12 @@ type Session struct {
 	ctx     context.Context
 }
 
+// Warning: Do not rely on this method; it will be removed in a future release. Not deprecated, but should not be used directly.
+func (s *Session) SpiceDB() *authzed.Client {
+	log.Warn("Usage of Session.SpiceDB()")
+	return s.spiceDB
+}
+
 const (
 	UserObjectType = "user"
 )
