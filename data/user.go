@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/katy248/ship-cloud-auth/db"
 	"github.com/uptrace/bun"
 	"golang.org/x/crypto/bcrypt"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
 )
 
 type User struct {

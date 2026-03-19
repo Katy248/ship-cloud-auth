@@ -3,10 +3,10 @@ package db
 import (
 	"database/sql"
 
+	"github.com/katy248/ship-cloud-auth/config"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 )
 
 var DB *bun.DB

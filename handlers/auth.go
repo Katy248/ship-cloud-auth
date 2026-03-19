@@ -11,9 +11,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/auth"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
+	"github.com/katy248/ship-cloud-auth/auth"
+	"github.com/katy248/ship-cloud-auth/config"
+	"github.com/katy248/ship-cloud-auth/data"
 )
 
 func mapErrors(vErrors validator.ValidationErrors) []gin.H {

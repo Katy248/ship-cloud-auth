@@ -1,8 +1,8 @@
 package keyval
 
 import (
+	"github.com/katy248/ship-cloud-auth/config"
 	"github.com/redis/go-redis/v9"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
 )
 
 var RDB *redis.Client

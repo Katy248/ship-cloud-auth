@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"charm.land/log/v2"
+	"github.com/katy248/ship-cloud-auth/db"
 	migrate "github.com/rubenv/sql-migrate"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
 )
 
 func panicIfErr(err error) {

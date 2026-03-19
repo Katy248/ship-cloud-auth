@@ -3,12 +3,12 @@ package main
 import (
 	"charm.land/log/v2"
 	"github.com/gin-gonic/gin"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/auth"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/config"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/data"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/db"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/handlers"
-	"sourcecraft.dev/organization-shipmonitor/ship-cloud-auth/keyval"
+	"github.com/katy248/ship-cloud-auth/auth"
+	"github.com/katy248/ship-cloud-auth/config"
+	"github.com/katy248/ship-cloud-auth/data"
+	"github.com/katy248/ship-cloud-auth/db"
+	"github.com/katy248/ship-cloud-auth/handlers"
+	"github.com/katy248/ship-cloud-auth/keyval"
 )
 
 func main() {
