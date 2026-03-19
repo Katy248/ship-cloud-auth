@@ -2,14 +2,56 @@ volumes:
   auth_data:
   redis_data:
   orgs_data:
+  commands_queue_data:
+  connector_data:
 
 networks:
   auth-net:
     driver: bridge
   orgs-net:
     driver: bridge
+  connector-net:
+    driver: bridge
 
 services:
+  # COMMANDS QUEUE
+  rabbit-mq:
+    image: "rabbitmq:latest"
+    env_file:
+      - ./env/rabbitmq.env # exampe only
+    ports:
+      - 5672:5672
+    volumes:
+      - commands_queue_data:/var/lib/rabbitmq
+  # CONNECTOR SERVICE
+  connector:
+    restart: unless-stopped
+    depends_on:
+      - connector-database
+      - rabbit-mq
+    build: https://git@git.sourcecraft.dev/organization-shipmonitor/ship-cloud-connector.git
+    ports:
+      - 8070:8070
+      - 8071:8071
+    networks:
+      - connector-net
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbit-mq:5672/
+      PORT: 8070
+      DATABASE_CONNECTION_STRING: "host='cloud-connector-database' user='connector' password='CoolPassword123' port='5432' dbname='connector-db' sslmode=disable"
+      DATABASE_AUTO_MIGRATE: true
+  # Connector database
+  connector-database:
+    restart: always
+    image: "postgres:latest"
+    environment:
+      POSTGRES_PASSWORD: "CoolPassword123"
+      POSTGRES_USER: "connector"
+      POSTGRES_DB: "connector-db"
+    networks:
+      - connector-net
+    volumes:
+      - connector_data:/var/lib/postgresql/data/
   # AUTH SERVICE
   auth-api:
     restart: unless-stopped
@@ -42,8 +84,6 @@ services:
       PGDATA: /var/lib/postgresql/data
     volumes:
       - auth_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
   # SPICE for permissions
   spice:
     image: quay.io/authzed/spicedb:latest
